@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Лаборатория Декора</title>
+    <link href="https://fonts.googleapis.com/css2?family=Great+Vibes&family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --header-font: 'Great Vibes', cursive;
+            --header-size: clamp(48px, 12vw, 64px);
+            --main-font: 'Roboto', sans-serif;
+            --q-size: clamp(18px, 5vw, 22px);
+            --opt-size: clamp(14px, 4vw, 16px);
+            --accent: #1b4332;
+            --text: #0a2f23;
+            --glass-card: rgba(255, 255, 255, 0.1);
+            --glass-item: rgba(255, 255, 255, 0.18);
+            --glass-border: rgba(255, 255, 255, 0.35);
+        }
+
+        body, html {
+            margin: 0; padding: 0; height: 100%; width: 100%;
+            min-height: -webkit-fill-available;
+            font-family: var(--main-font); background: #dbe4db; overflow: hidden;
+            display: flex; justify-content: center; align-items: center;
+            color: var(--text); -webkit-tap-highlight-color: transparent;
+        }
+
+        #fx-container { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 9999; pointer-events: none; }
+        .leaf-bg { position: absolute; width: 30px; height: 30px; background: #2d6a4f; border-radius: 0 100%; opacity: 0.12; }
+        .smooth-leaf { position: absolute; width: 24px; height: 24px; pointer-events: none; border-radius: 0 100%; transition: transform 1.8s cubic-bezier(0.2, 0.6, 0.3, 1), opacity 1.5s ease-out; z-index: 10000; }
+
+        @keyframes flyBackground {
+            0% { transform: translate(0, 0) rotate(0deg); opacity: 0; }
+            10% { opacity: 0.15; }
+            100% { transform: translate(var(--tx), var(--ty)) rotate(720deg); opacity: 0; }
+        }
+
+        .viewport { position: relative; z-index: 100; width: 100%; max-width: 450px; padding: env(safe-area-inset-top) 20px env(safe-area-inset-bottom) 20px; box-sizing: border-box; }
+
+        .main-card {
+            background: var(--glass-card); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border); border-radius: 40px; padding: 30px 20px;
+            width: 100%; min-height: min(580px, 85vh); display: flex; flex-direction: column;
+            align-items: center; justify-content: center; box-shadow: 0 15px 40px rgba(0, 0, 0, 0.04);
+            transition: all 0.5s ease; box-sizing: border-box;
+        }
+
+        h1 { font-family: var(--header-font); font-size: var(--header-size); margin: 0 0 15px 0; color: var(--accent); text-align: center; line-height: 1; }
+        .question-text { font-size: var(--q-size); font-weight: 700; margin-bottom: 15px; text-align: center; line-height: 1.2; }
+        .image-box { width: 100%; height: clamp(140px, 25vh, 180px); border-radius: 20px; overflow: hidden; border: 1px solid var(--glass-border); margin-bottom: 15px; display: none; }
+        .question-image { width: 100%; height: 100%; object-fit: cover; }
+        .options-grid { width: 100%; display: flex; flex-direction: column; gap: 10px; }
+        .option-item { background: var(--glass-item); border: 1px solid var(--glass-border); padding: clamp(12px, 3vh, 16px); border-radius: 18px; font-size: var(--opt-size); font-weight: 500; cursor: pointer; transition: 0.2s; }
+        .option-item.selected { background: var(--accent); color: white; border-color: var(--accent); }
+        .btn-action { width: 100%; background: var(--accent); color: white; border: none; padding: 18px; border-radius: 50px; font-size: 18px; font-weight: 600; margin-top: 20px; cursor: pointer; }
+        .btn-action:disabled { opacity: 0.2; }
+        .fio-input { width: 80%; border: none; border-bottom: 2px solid var(--accent); background: transparent; padding: 8px; font-size: 24px; text-align: center; outline: none; margin-bottom: 30px; color: var(--accent); -webkit-appearance: none; }
+
+        #quiz-ui, #result-ui { display: none; width: 100%; flex-direction: column; align-items: center; }
+        .score-big { font-size: 100px; font-family: var(--header-font); color: var(--accent); line-height: 1; }
+        .reset-link { margin-top: 30px; font-size: 12px; opacity: 0.5; text-decoration: underline; cursor: pointer; color: var(--text); }
+    </style>
+</head>
+<body>
+<div id="fx-container"></div>
+<div class="viewport">
+    <div class="main-card" id="login-ui">
+        <h1>Лаборатория Декора</h1>
+        <input type="text" id="user-name" class="fio-input" placeholder="Ваше имя" autocomplete="off">
+        <button class="btn-action" onclick="startTest(event)">Начать тест</button>
+    </div>
+    <div class="main-card" id="quiz-ui">
+        <div id="q-text" class="question-text"></div>
+        <div class="image-box" id="q-img-cont"><img id="q-image" class="question-image" src=""></div>
+        <div id="options-box" class="options-grid"></div>
+        <button class="btn-action" id="next-btn" onclick="nextQuestion(event)" disabled>Подтвердить</button>
+    </div>
+    <div class="main-card" id="result-ui">
+        <h1>Ваш итог</h1>
+        <div class="score-big" id="final-score">0</div>
+        <div id="final-joke" style="font-style: italic; text-align: center;"></div>
+        <div class="reset-link" onclick="resetTest()">Сбросить прогресс и начать заново</div>
+    </div>
+</div>
+
+<script>
+    const SCRIPT_URL = 'ВАША_ССЫЛКА_ТУТ';
+    const questions = [
+        { q: "К какой группе относится Петуния?", imgUrl: "", a: ["Многолетники", "Двулетники", "Однолетники"], c: 2 },
+        { q: "Способ вегетативного размножения:", imgUrl: "https://images.unsplash.com/photo-1416870213587-89f3ce8830bb?q=80&w=500&auto=format&fit=crop", a: ["Посев", "Черенкование", "Гибридизация"], c: 1 },
+        { q: "Типичное луковичное растение:", imgUrl: "https://images.unsplash.com/photo-1550948390-6eb7fa773072?q=80&w=500&auto=format&fit=crop", a: ["Гладиолус", "Тюльпан", "Георгина"], c: 1 }
+    ];
+    const jokes = [
+        { min: 3, t: ["Король Оранжерей! 👑🌻", "Магистр ботаники! 🎓🌿", "Ваши знания глубже корней! 🌳"]},
+        { min: 1, t: ["Мастер-садовник! 💪🍃", "Тля вас боится! 🐞", "Прекрасный результат! ✨"]},
+        { min: 0, t: ["Почётный одуванчик! 💨", "Знания придут с поливом! 🌱", "Главное — любовь к растениям! 😊"]}
+    ];
+
+    let state = {
+        current: parseInt(localStorage.getItem('quiz_current')) || 0,
+        score: parseInt(localStorage.getItem('quiz_score')) || 0,
+        fio: localStorage.getItem('quiz_fio') || "",
+        finished: localStorage.getItem('quiz_finished') === 'true'
+    };
+
+    function smoothSplash(x, y) {
+        for(let i=0; i<12; i++){
+            const p = document.createElement('div');
+            p.className = 'smooth-leaf';
+            p.style.left = x + 'px'; p.style.top = y + 'px';
+            p.style.background = ['#2d6a4f','#40916c','#d4af37','#fdfdfd'][Math.floor(Math.random()*4)];
+            document.getElementById('fx-container').appendChild(p);
+            const angle = (Math.PI * 2 / 12) * i;
+            const dist = 100 + Math.random() * 80;
+            setTimeout(() => { p.style.transform = `translate(${Math.cos(angle)*dist}px, ${Math.sin(angle)*dist}px) rotate(360deg) scale(0)`; p.style.opacity = '0'; }, 50);
+            setTimeout(() => p.remove(), 1800);
+        }
+    }
+
+    function spawnBgLeaf() {
+        const leaf = document.createElement('div');
+        leaf.className = 'leaf-bg';
+        leaf.style.left = Math.random() * 100 + '%'; leaf.style.top = '-50px';
+        leaf.style.setProperty('--tx',`${(Math.random()-0.5)*1000}px`);
+        leaf.style.setProperty('--ty',`${window.innerHeight + 100}px`);
+        leaf.style.animation = `flyBackground ${Math.random()*5+8}s linear forwards`;
+        document.getElementById('fx-container').appendChild(leaf);
+        setTimeout(() => leaf.remove(), 13000);
+    }
+    setInterval(spawnBgLeaf, 1000);
+
+    window.onload = () => {
+        if(state.finished) showFinal();
+        else if(state.fio) { document.getElementById('login-ui').style.display='none'; document.getElementById('quiz-ui').style.display='flex'; render(); }
+    };
+
+    function save() {
+        localStorage.setItem('quiz_current', state.current);
+        localStorage.setItem('quiz_score', state.score);
+        localStorage.setItem('quiz_fio', state.fio);
+        localStorage.setItem('quiz_finished', state.finished);
+    }
+
+    function resetTest() { localStorage.clear(); location.reload(); }
+
+    function startTest(e) {
+        state.fio = document.getElementById('user-name').value.trim();
+        if(state.fio.length < 2) return alert("Введите имя!");
+        smoothSplash(e.clientX || window.innerWidth/2, e.clientY || window.innerHeight/2);
+        save(); document.getElementById('login-ui').style.display='none'; document.getElementById('quiz-ui').style.display='flex'; render();
+    }
+
+    function render() {
+        document.getElementById('next-btn').disabled = true;
+        if(state.current >= questions.length) return finish();
+        const q = questions[state.current];
+        document.getElementById('q-text').innerText = (state.current + 1) + ". " + q.q;
+        const imgCont = document.getElementById('q-img-cont');
+        if(q.imgUrl) { document.getElementById('q-image').src = q.imgUrl; imgCont.style.display = 'block'; } else { imgCont.style.display = 'none'; }
+        const box = document.getElementById('options-box'); box.innerHTML = '';
+        q.a.forEach((text, i) => {
+            const item = document.createElement('div');
+            item.className = 'option-item'; item.innerText = text;
+            item.onclick = () => { document.querySelectorAll('.option-item').forEach(el=>el.classList.remove('selected')); item.classList.add('selected'); state.selected = i; document.getElementById('next-btn').disabled = false; };
+            box.appendChild(item);
+        });
+    }
+
+    function nextQuestion(e) {
+        smoothSplash(e.clientX || window.innerWidth/2, e.clientY || window.innerHeight/2);
+        if(state.selected === questions[state.current].c) state.score++;
+        state.current++; save(); render();
+    }
+
+    function finish() { state.finished = true; save(); showFinal(); fetch(SCRIPT_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify({fio: state.fio, score: state.score}) }); }
+
+    function showFinal() {
+        document.getElementById('login-ui').style.display='none'; document.getElementById('quiz-ui').style.display='none'; document.getElementById('result-ui').style.display='flex';
+        document.getElementById('final-score').innerText = state.score + " / " + questions.length;
+        const cat = jokes.find(j => state.score >= j.min) || jokes[jokes.length-1];
+        document.getElementById('final-joke').innerText = cat.t[Math.floor(Math.random() * cat.t.length)];
+    }
+</script>
+</body>
+</html>
